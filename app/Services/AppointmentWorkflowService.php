@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\AppointmentStatus;
+use App\Events\AppointmentCancelled;
 use App\Models\Appointment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -33,12 +34,12 @@ class AppointmentWorkflowService
                 'doctor',
                 'branch',
             ]);
-        });
+        }, 3);
     }
 
     public function cancel(Appointment $appointment): Appointment
     {
-        return DB::transaction(function () use ($appointment) {
+        $updated = DB::transaction(function () use ($appointment) {
 
             $appointment = Appointment::query()
                 ->lockForUpdate()
@@ -60,6 +61,11 @@ class AppointmentWorkflowService
                 'doctor',
                 'branch',
             ]);
-        });
+        }, 3);
+
+        // Business event after successful cancellation
+        AppointmentCancelled::dispatch($updated->id);
+
+        return $updated;
     }
 }

@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Enums\AppointmentStatus;
+use App\Enums\UserRole;
+use App\Events\AppointmentBooked;
 use App\Models\Appointment;
 use App\Models\Doctor;
 use App\Models\DoctorSchedule;
@@ -29,20 +31,19 @@ class BookingService
             ]);
         }
 
-        if ($startLocal->toDateString() !==
-            $endLocal->toDateString()) {
+        if ($startLocal->toDateString() !== $endLocal->toDateString()) {
             throw ValidationException::withMessages([
                 'start_time' => 'وقت الموعد غير صالح.',
             ]);
         }
 
-        return DB::transaction(function () use (
+        $appointment = DB::transaction(function () use (
             $data,
             $actor,
             $startLocal,
             $endLocal
         ) {
-            // Lock the doctor to serialize bookings.
+            // Lock doctor to prevent concurrent bookings
             Doctor::query()
                 ->whereKey($data['doctor_id'])
                 ->lockForUpdate()
@@ -53,26 +54,33 @@ class BookingService
                 ->lockForUpdate()
                 ->firstOrFail();
 
+            // Check booking ban
             if (
-                $patient->online_booking_banned_until
-                ?->isFuture()
-                && $actor->role !== \App\Enums\UserRole::ADMIN
+                $patient->online_booking_banned_until?->isFuture()
+                && $actor->role !== UserRole::ADMIN
             ) {
                 throw ValidationException::withMessages([
                     'patient_id' => 'المريض ممنوع من الحجز.',
                 ]);
             }
 
+            // Check doctor's schedule
             $day = strtolower($startLocal->format('l'));
 
             $availableSchedule = DoctorSchedule::query()
                 ->where('doctor_id', $data['doctor_id'])
                 ->where('branch_id', $data['branch_id'])
                 ->where('day_of_week', $day)
-                ->where('start_time', '<=',
-                    $startLocal->format('H:i:s'))
-                ->where('end_time', '>=',
-                    $endLocal->format('H:i:s'))
+                ->where(
+                    'start_time',
+                    '<=',
+                    $startLocal->format('H:i:s')
+                )
+                ->where(
+                    'end_time',
+                    '>=',
+                    $endLocal->format('H:i:s')
+                )
                 ->exists();
 
             if (! $availableSchedule) {
@@ -85,6 +93,7 @@ class BookingService
             $startUtc = $startLocal->copy()->utc();
             $endUtc = $endLocal->copy()->utc();
 
+            // Prevent overlapping appointments
             $conflict = Appointment::query()
                 ->where('doctor_id', $data['doctor_id'])
                 ->whereNotIn('status', [
@@ -101,6 +110,7 @@ class BookingService
                 ]);
             }
 
+            // Reference number is created by Observer
             return Appointment::create([
                 'patient_id' => $data['patient_id'],
                 'doctor_id' => $data['doctor_id'],
@@ -111,5 +121,10 @@ class BookingService
                 'status' => AppointmentStatus::BOOKED,
             ]);
         }, 3);
+
+        // Business event after successful booking
+        AppointmentBooked::dispatch($appointment->id);
+
+        return $appointment;
     }
 }

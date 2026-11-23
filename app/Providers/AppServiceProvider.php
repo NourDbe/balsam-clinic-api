@@ -9,13 +9,18 @@ use App\Observers\AppointmentObserver;
 use App\Observers\MedicalRecordObserver;
 use App\Observers\PatientObserver;
 use Illuminate\Support\ServiceProvider;
+use App\Contracts\SmsSender;
+use App\Services\LogSmsSender;
 
 class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
-    {
-        //
-    }
+{
+    $this->app->bind(
+        SmsSender::class,
+        LogSmsSender::class
+    );
+}
 
     public function boot(): void
     {
