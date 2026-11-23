@@ -5,6 +5,7 @@ use App\Http\Resources\UserResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AppointmentActionsController;
+use App\Http\Controllers\Api\MedicalRecordController;
 
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -31,5 +32,24 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::patch('/appointments/{appointment}/cancel', [
     AppointmentActionsController::class,
     'cancel'
+]);
+Route::get('/appointments/{appointment}/medical-record', [
+    MedicalRecordController::class,
+    'show',
+]);
+
+Route::post('/appointments/{appointment}/medical-record', [
+    MedicalRecordController::class,
+    'store',
+]);
+
+Route::patch('/medical-records/{medicalRecord}', [
+    MedicalRecordController::class,
+    'update',
+]);
+
+Route::get('/medical-records/{medicalRecord}/audit-logs', [
+    MedicalRecordController::class,
+    'auditLogs',
 ]);
 });
