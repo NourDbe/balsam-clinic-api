@@ -56,13 +56,13 @@ class BookingService
 
             // Check booking ban
             if (
-                $patient->online_booking_banned_until?->isFuture()
-                && $actor->role !== UserRole::ADMIN
-            ) {
-                throw ValidationException::withMessages([
-                    'patient_id' => 'المريض ممنوع من الحجز.',
-                ]);
-            }
+            $patient->online_booking_banned_until?->isFuture()
+            && $actor->role === UserRole::PATIENT
+        ) {
+            throw ValidationException::withMessages([
+                'patient_id' => 'المريض ممنوع من الحجز أونلاين.',
+            ]);
+        }
 
             // Check doctor's schedule
             $day = strtolower($startLocal->format('l'));
