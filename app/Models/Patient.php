@@ -31,4 +31,8 @@ class Patient extends Model
 {
     return $this->hasMany(Appointment::class);
 }
+public function auditLogs(): \Illuminate\Database\Eloquent\Relations\MorphMany
+{
+    return $this->morphMany(AuditLog::class, 'auditable');
+}
 }
