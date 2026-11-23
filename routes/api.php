@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Resources\UserResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\AppointmentActionsController;
 
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -22,4 +23,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/appointments', [
         AppointmentController::class, 'store'
     ]);
+    Route::patch('/appointments/{appointment}/arrive', [
+    AppointmentActionsController::class,
+    'arrive'
+]);
+
+Route::patch('/appointments/{appointment}/cancel', [
+    AppointmentActionsController::class,
+    'cancel'
+]);
 });
