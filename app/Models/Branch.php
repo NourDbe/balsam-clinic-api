@@ -12,4 +12,8 @@ class Branch extends Model
         'city',
         'address',
     ];
+    public function doctorSchedules(): \Illuminate\Database\Eloquent\Relations\HasMany
+{
+    return $this->hasMany(DoctorSchedule::class);
+}
 }
