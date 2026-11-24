@@ -10,6 +10,8 @@ use App\Enums\UserRole;
 use Illuminate\Database\Eloquent\Builder;
 use Carbon\Carbon;
 use App\Models\Scopes\ReceptionBranchScope;
+use App\Models\Attachment;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Appointment extends Model
 {
@@ -123,6 +125,13 @@ protected static function booted(): void
 {
     static::addGlobalScope(
         new ReceptionBranchScope()
+    );
+}
+public function attachments(): MorphMany
+{
+    return $this->morphMany(
+        Attachment::class,
+        'attachable'
     );
 }
 }

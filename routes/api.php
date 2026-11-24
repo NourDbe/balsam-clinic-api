@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\AppointmentActionsController;
 use App\Http\Controllers\Api\MedicalRecordController;
 use App\Http\Controllers\Api\AvailabilityController;
 use App\Http\Controllers\Api\DoctorController;
+use App\Http\Controllers\Api\AttachmentController;
 
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -61,5 +62,25 @@ Route::get('/doctors', [
     DoctorController::class,
     'index',
 ]);
+
+Route::get(
+    '/attachments/{type}/{id}',
+    [AttachmentController::class, 'index']
+);
+
+Route::post(
+    '/attachments/{type}/{id}',
+    [AttachmentController::class, 'store']
+);
+
+Route::get(
+    '/attachment-files/{attachment}',
+    [AttachmentController::class, 'download']
+);
+
+Route::delete(
+    '/attachment-files/{attachment}',
+    [AttachmentController::class, 'destroy']
+);
 
 });
