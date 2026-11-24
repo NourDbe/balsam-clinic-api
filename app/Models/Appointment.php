@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use App\Enums\UserRole;
 use Illuminate\Database\Eloquent\Builder;
 use Carbon\Carbon;
+use App\Models\Scopes\ReceptionBranchScope;
 
 class Appointment extends Model
 {
@@ -117,5 +118,11 @@ public function scopeFilter(Builder $query, array $filters): Builder
     }
 
     return $query;
+}
+protected static function booted(): void
+{
+    static::addGlobalScope(
+        new ReceptionBranchScope()
+    );
 }
 }
