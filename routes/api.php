@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AppointmentActionsController;
 use App\Http\Controllers\Api\MedicalRecordController;
+use App\Http\Controllers\Api\AvailabilityController;
 
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -52,4 +53,5 @@ Route::get('/medical-records/{medicalRecord}/audit-logs', [
     MedicalRecordController::class,
     'auditLogs',
 ]);
+Route::get('/availability', AvailabilityController::class);
 });
