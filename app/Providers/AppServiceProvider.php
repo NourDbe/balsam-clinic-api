@@ -11,6 +11,10 @@ use App\Observers\PatientObserver;
 use Illuminate\Support\ServiceProvider;
 use App\Contracts\SmsSender;
 use App\Services\LogSmsSender;
+use App\Models\Doctor;
+use App\Models\DoctorSchedule;
+use App\Observers\DoctorObserver;
+use App\Observers\DoctorScheduleObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -29,5 +33,9 @@ class AppServiceProvider extends ServiceProvider
         MedicalRecord::observe(MedicalRecordObserver::class);
 
         Patient::observe(PatientObserver::class);
+
+        Doctor::observe(DoctorObserver::class);
+
+        DoctorSchedule::observe(DoctorScheduleObserver::class);
     }
 }

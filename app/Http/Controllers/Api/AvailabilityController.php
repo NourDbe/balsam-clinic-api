@@ -8,6 +8,7 @@ use App\Http\Resources\AvailableSlotsResource;
 use App\Services\AppointmentAvailabilityService;
 use Illuminate\Http\Request;
 
+
 class AvailabilityController extends Controller
 {
     public function __invoke(
