@@ -1,0 +1,118 @@
+name: Redis and Horizon Verification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ":memory:"
+      SESSION_DRIVER: file
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+      REDIS_CLIENT: predis
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, pdo_sqlite, pcntl, posix
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Prepare Laravel
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          php artisan optimize:clear
+
+      - name: Verify Redis Cache
+        run: |
+          php artisan tinker --execute='
+          $cache = \Illuminate\Support\Facades\Cache::store("redis");
+          $cache->put("balsam-smoke-test", "success", 60);
+          if ($cache->get("balsam-smoke-test") !== "success") {
+              throw new \RuntimeException("Redis cache test failed");
+          }
+          echo "REDIS CACHE PASSED\n";
+          '
+
+      - name: Create temporary smoke test job
+        run: |
+          mkdir -p app/Jobs
+          cat > app/Jobs/RedisHorizonSmokeJob.php <<'PHP'
+          <?php
+
+          namespace App\Jobs;
+
+          use Illuminate\Bus\Queueable;
+          use Illuminate\Contracts\Queue\ShouldQueue;
+          use Illuminate\Foundation\Bus\Dispatchable;
+          use Illuminate\Queue\InteractsWithQueue;
+          use Illuminate\Queue\SerializesModels;
+
+          class RedisHorizonSmokeJob implements ShouldQueue
+          {
+              use Dispatchable, InteractsWithQueue;
+              use Queueable, SerializesModels;
+
+              public function handle(): void
+              {
+                  file_put_contents(
+                      storage_path('app/redis-horizon-ok.txt'),
+                      'Job processed successfully'
+                  );
+              }
+          }
+          PHP
+
+      - name: Start Horizon and process Redis job
+        run: |
+          php artisan horizon > /tmp/horizon.log 2>&1 &
+          HORIZON_PID=$!
+          trap 'kill $HORIZON_PID 2>/dev/null || true' EXIT
+
+          sleep 8
+
+          php artisan horizon:status
+
+          php artisan tinker --execute='\App\Jobs\RedisHorizonSmokeJob::dispatch()->onConnection("redis")->onQueue("high");'
+
+          for i in $(seq 1 30); do
+            if test -f storage/app/redis-horizon-ok.txt; then
+              cat storage/app/redis-horizon-ok.txt
+              echo "REDIS QUEUE AND HORIZON PASSED"
+              exit 0
+            fi
+            sleep 1
+          done
+
+          cat /tmp/horizon.log
+          echo "HORIZON PROCESSING FAILED"
+          exit 1
