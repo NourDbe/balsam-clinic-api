@@ -16,7 +16,66 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
-        );
-    })->create();
+
+    $exceptions->shouldRenderJsonWhen(
+        function ($request, $exception) {
+            return $request->is('api/*')
+                || $request->expectsJson();
+        }
+    );
+
+    $exceptions->render(
+        function (
+            \Throwable $exception,
+            \Illuminate\Http\Request $request
+        ) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            if ($exception instanceof
+                \Illuminate\Validation\ValidationException) {
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'بيانات الإدخال غير صحيحة.',
+                    'errors' => $exception->errors(),
+                ], 422);
+            }
+
+            $status = match (true) {
+                $exception instanceof
+                    \Illuminate\Auth\AuthenticationException => 401,
+
+                $exception instanceof
+                    \Illuminate\Auth\Access\AuthorizationException => 403,
+
+                $exception instanceof
+                    \Illuminate\Database\Eloquent\ModelNotFoundException => 404,
+
+                $exception instanceof
+                    \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface
+                    => $exception->getStatusCode(),
+
+                default => 500,
+            };
+
+            $message = match ($status) {
+                401 => 'يجب تسجيل الدخول للوصول إلى هذه الخدمة.',
+                403 => 'ليس لديك صلاحية لتنفيذ هذا الإجراء.',
+                404 => 'المورد المطلوب غير موجود.',
+                405 => 'طريقة الطلب غير مسموحة.',
+                422 => 'بيانات الإدخال غير صحيحة.',
+                429 => 'عدد الطلبات كبير، يرجى المحاولة لاحقاً.',
+                default => 'حدث خطأ أثناء معالجة الطلب.',
+            };
+
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+                'errors' => [],
+            ], $status);
+        }
+    );
+})
+->create();
